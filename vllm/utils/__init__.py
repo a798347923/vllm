@@ -3410,6 +3410,57 @@ def set_env_var(key, value):
         else:
             os.environ[key] = old
 
+def build_method_json(method: str, **kwargs) -> str:
+    """
+    Build a JSON string representing a method call.
+
+    Example:
+        build_method_json("resume")
+        build_method_json("restart", delay_seconds=5, force=True)
+    """
+    instruction = {"method": method}
+    instruction.update(kwargs)  # Merge additional parameters
+    return json.dumps(instruction)
+
+
+def parse_method_json(json_str: str) -> tuple[str, dict]:
+    """
+    Parse a JSON-formatted instruction string.
+
+    Args:
+        json_str (str): JSON string received from client.
+
+    Returns:
+        tuple[str, dict]:
+            method: Name of the method.
+            params: Dictionary of additional parameters.
+
+    Raises:
+        ValueError: If JSON is invalid or missing the 'method' field.
+    """
+    try:
+        parsed_instruction = json.loads(json_str)
+    except json.JSONDecodeError as e:
+        logger.error(
+            "Failed to decode instruction JSON: %s", json_str
+        )
+        raise ValueError(
+            f"Invalid JSON instruction: {e}"
+        ) from e
+
+    method = parsed_instruction.get("method")
+    if not method:
+        logger.error(
+            "Instruction missing 'method' field: %s", json_str
+        )
+        raise ValueError("Instruction JSON must contain a 'method' field")
+
+    params = {
+        k: v for k, v in parsed_instruction.items()
+        if k != "method"
+    }
+    return method, params
+
 
 def unique_filepath(fn: Callable[[int], Path]) -> Path:
     """
