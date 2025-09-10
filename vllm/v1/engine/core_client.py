@@ -13,7 +13,7 @@ from collections import defaultdict, deque
 from collections.abc import Awaitable, Sequence
 from concurrent.futures import Future
 from dataclasses import dataclass
-from threading import Thread, Lock
+from threading import Lock, Thread
 from typing import Any, Callable, Optional, TypeVar, Union
 
 import msgspec.msgpack
@@ -548,8 +548,8 @@ class MPClient(EngineCoreClient):
             self.start_engine_core_monitor()
 
             # Enable fault tolerance functions
-            if (self.vllm_config.fault_tolerance_config
-                    .enable_fault_tolerance):
+            if (self.vllm_config.fault_tolerance_config.enable_fault_tolerance
+                ):
                 self.engine_exception_q: queue.Queue[str] = queue.Queue()
                 # Exceptions may be enqueued by both `engine_exception_receiver`
                 # and `monitor_engine_cores` threads.
@@ -562,13 +562,10 @@ class MPClient(EngineCoreClient):
                     sync_ctx,
                     addresses.engine_control_addr,
                     zmq.ROUTER,
-                    bind=True
-                )
+                    bind=True)
                 # Start receiving engine exception reports from EngineCoreGuard
                 self.start_engine_exception_receiver(
-                    ctx=sync_ctx,
-                    address=addresses.engine_fault_report_addr
-                )
+                    ctx=sync_ctx, address=addresses.engine_fault_report_addr)
 
             success = True
         finally:
@@ -641,24 +638,21 @@ class MPClient(EngineCoreClient):
                     # In fine-grained mode, the client shuts down only if:
                     # 1) All engine-core processes have exited, or
                     # 2) An external shutdown command is received, or
-                    # 3) EngineCore does not receive fault tolerance instructions
-                    #    within the configured timeout; in this case, subsequent
+                    # 3) EngineCore not receive fault tolerance instructions
+                    #    within the configured timeout; in the case, subsequent
                     #    exceptions are forwarded to the client and handled by
                     #    process_output_socket.
                     for sentinel in died:
                         proc_name = next(proc.name for proc in engine_processes
                                          if proc.sentinel == sentinel)
-                        logger.warning(
-                            "Engine core proc %s died unexpectedly",
-                            proc_name)
+                        logger.warning("Engine core %s died unexpectedly",
+                                       proc_name)
                         sentinels.remove(sentinel)
                         global_engine_index = proc_name.split('_')[1]
                         except_info = ExceptionInfo.from_exception(
                             exception=RuntimeError(
-                                f"Engine core {proc_name} died unexpectedly"
-                            ),
-                            engine_id=global_engine_index
-                        )
+                                f"Engine core {proc_name} died unexpectedly"),
+                            engine_id=global_engine_index)
                         with _self.queue_lock:
                             _self.engine_exception_q.put(except_info.to_json())
                 else:
@@ -697,7 +691,7 @@ class MPClient(EngineCoreClient):
                         "[EngineExceptionReceiver] Error: %s, exiting.",
                         e,
                     )
-                    break
+                    return
 
         Thread(target=engine_exception_receiver,
                daemon=True,
@@ -709,11 +703,12 @@ class MPClient(EngineCoreClient):
         return self.engine_exception_q
 
     def send_fault_tolerance_instruction(self,
-                                        instruction_dict: dict[int | str, str]):
+                                         instruction_dict: dict[int | str,
+                                                                str]):
         """ Sends fault tolerance instructions to EngineCoreGuard instances.
         """
         for engine_index, instruction in instruction_dict.items():
-            target_identity=get_socket_identity(
+            target_identity = get_socket_identity(
                 peer1='client',
                 peer2='engine_core_guard',
                 peer2_index=engine_index,
@@ -724,11 +719,9 @@ class MPClient(EngineCoreClient):
             self.engine_control_socket.send_multipart(
                 [target_identity, instruction])
 
-    def wait_fault_tolerance_responses(
-            self,
-            engine_ids: set[int | str],
-            timeout_ms: int = 60000
-    ) -> bool:
+    def wait_fault_tolerance_responses(self,
+                                       engine_ids: set[int | str],
+                                       timeout_ms: int = 60000) -> bool:
         """
         Waits for fault tolerance responses from all specified EngineCoreGuard
         instances. Returns True only if all responded with success=True.
@@ -841,7 +834,6 @@ def _process_utility_output(
                 "Cancelled call to utility method failed with error: %s",
                 failure_message,
             )
-
 
 
 class SyncMPClient(MPClient):
@@ -1217,10 +1209,7 @@ class AsyncMPClient(MPClient):
         via `asyncio.to_thread`, preventing the event loop from being blocked.
         """
         queue_data = await asyncio.to_thread(self.get_exception_queue_snapshot)
-        return {
-            "queue_size": len(queue_data),
-            "items": queue_data
-        }
+        return {"queue_size": len(queue_data), "items": queue_data}
 
 
 class DPAsyncMPClient(AsyncMPClient):
