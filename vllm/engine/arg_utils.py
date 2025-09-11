@@ -37,6 +37,7 @@ from vllm.config import (
     ConfigType,
     DeviceConfig,
     EPLBConfig,
+    FaultToleranceConfig,
     KVEventsConfig,
     KVTransferConfig,
     LoadConfig,
@@ -51,7 +52,6 @@ from vllm.config import (
     StructuredOutputsConfig,
     VllmConfig,
     get_attr_docs,
-    FaultToleranceConfig,
 )
 from vllm.config.cache import BlockSize, CacheDType, MambaDType, PrefixCachingHashAlgo
 from vllm.config.device import Device
@@ -1047,10 +1047,12 @@ class EngineArgs:
         )
         fault_tolerance_group.add_argument(
             "--enable-fault-tolerance",
-            **fault_tolerance_kwargs["enable_fault_tolerance"])
+            **fault_tolerance_kwargs["enable_fault_tolerance"],
+        )
         fault_tolerance_group.add_argument(
             "--engine-recovery-timeout",
-            **fault_tolerance_kwargs["engine_recovery_timeout"])
+            **fault_tolerance_kwargs["engine_recovery_timeout"],
+        )
 
         # Other arguments
         parser.add_argument(
@@ -1582,7 +1584,7 @@ class EngineArgs:
 
         fault_tolerance_config = FaultToleranceConfig(
             enable_fault_tolerance=self.enable_fault_tolerance,
-            engine_recovery_timeout=self.engine_recovery_timeout
+            engine_recovery_timeout=self.engine_recovery_timeout,
         )
 
         config = VllmConfig(

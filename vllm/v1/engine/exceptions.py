@@ -34,16 +34,19 @@ class ExceptionInfo:
 
     @classmethod
     def from_exception(
-            cls,
-            exception: Exception,
-            engine_id: str,
-            additional_info: Optional[dict] = None) -> 'ExceptionInfo':
+        cls,
+        exception: Exception,
+        engine_id: str,
+        additional_info: Optional[dict] = None,
+    ) -> "ExceptionInfo":
         """Create ExceptionInfo from an exception."""
-        return cls(type=type(exception).__name__,
-                   message=str(exception),
-                   timestamp=datetime.now().isoformat(),
-                   engine_id=engine_id,
-                   additional_info=additional_info or {})
+        return cls(
+            type=type(exception).__name__,
+            message=str(exception),
+            timestamp=datetime.now().isoformat(),
+            engine_id=engine_id,
+            additional_info=additional_info or {},
+        )
 
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
@@ -52,7 +55,7 @@ class ExceptionInfo:
             "message": self.message,
             "timestamp": self.timestamp,
             "engine_id": self.engine_id,
-            "additional_info": self.additional_info
+            "additional_info": self.additional_info,
         }
 
     def to_json(self) -> str:
@@ -60,11 +63,13 @@ class ExceptionInfo:
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'ExceptionInfo':
+    def from_json(cls, json_str: str) -> "ExceptionInfo":
         """Create ExceptionInfo from JSON string."""
         data = json.loads(json_str)
-        return cls(type=data["type"],
-                   message=data["message"],
-                   timestamp=data["timestamp"],
-                   engine_id=data["engine_id"],
-                   additional_info=data["additional_info"])
+        return cls(
+            type=data["type"],
+            message=data["message"],
+            timestamp=data["timestamp"],
+            engine_id=data["engine_id"],
+            additional_info=data["additional_info"],
+        )

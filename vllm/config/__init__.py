@@ -9,6 +9,7 @@ from vllm.config.compilation import (
     PassConfig,
 )
 from vllm.config.device import DeviceConfig
+from vllm.config.fault_tolerance import FaultToleranceConfig
 from vllm.config.kv_events import KVEventsConfig
 from vllm.config.kv_transfer import KVTransferConfig
 from vllm.config.load import LoadConfig
@@ -70,6 +71,8 @@ __all__ = [
     "MultiModalConfig",
     # From vllm.config.observability
     "ObservabilityConfig",
+    # From vllm.config.fault_tolerance
+    "FaultToleranceConfig",
     # From vllm.config.parallel
     "EPLBConfig",
     "ParallelConfig",

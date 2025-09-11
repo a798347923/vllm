@@ -23,6 +23,7 @@ from vllm.utils import random_uuid
 from .cache import CacheConfig
 from .compilation import CompilationConfig, CompilationLevel, CUDAGraphMode
 from .device import DeviceConfig
+from .fault_tolerance import FaultToleranceConfig
 from .kv_events import KVEventsConfig
 from .kv_transfer import KVTransferConfig
 from .load import LoadConfig
@@ -98,6 +99,8 @@ class VllmConfig:
     kv_transfer_config: Optional[KVTransferConfig] = None
     """The configurations for distributed KV cache transfer."""
     kv_events_config: Optional[KVEventsConfig] = None
+    """The configurations for event publishing."""
+    fault_tolerance_config: Optional[FaultToleranceConfig] = None
     """The configurations for event publishing."""
     # some opaque config, only used to provide additional information
     # for the hash computation, mainly used for testing, debugging or out of
