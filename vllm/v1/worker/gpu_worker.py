@@ -253,6 +253,11 @@ class WorkerSentinel:
         self.zmq_ctx.term()
 
 
+class WorkerGuard:
+    def __init__(self):
+        pass
+
+
 class Worker(WorkerBase):
     def __init__(
         self,
