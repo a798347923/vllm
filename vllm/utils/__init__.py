@@ -3472,3 +3472,33 @@ def unique_filepath(fn: Callable[[int], Path]) -> Path:
         if not p.exists():
             return p
         i += 1
+
+
+def generate_identity():
+    """
+    生成ZMQ ROUTER节点的唯一identity
+
+    格式：IP地址_PID_时间戳（毫秒）
+    返回：字节类型的identity
+    """
+    # 获取本机IP地址
+    try:
+        # 创建临时socket连接到外部服务器以获取本机出口IP
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))  # 连接到公共DNS服务器
+            ip_address = s.getsockname()[0]
+    except Exception:
+        # 失败时使用本地回环地址
+        ip_address = "127.0.0.1"
+
+    # 获取当前进程PID
+    pid = os.getpid()
+
+    # 获取当前时间戳（毫秒级），确保同一秒内的唯一性
+    timestamp = int(time.time() * 1000)
+
+    # 组合成字符串标识
+    identity_str = f"{ip_address}_{pid}_{timestamp}"
+
+    # 转换为字节类型返回（ZMQ要求identity为字节类型）
+    return identity_str.encode('utf-8')

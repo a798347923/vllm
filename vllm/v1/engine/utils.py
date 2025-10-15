@@ -17,6 +17,8 @@ import zmq
 
 from vllm.config import CacheConfig, ParallelConfig, VllmConfig
 from vllm.logger import init_logger
+from vllm.utils import make_zmq_socket, generate_identity
+
 from vllm.platforms import current_platform
 from vllm.ray.ray_env import get_env_vars_to_copy
 from vllm.utils import get_mp_context, get_open_zmq_ipc_path, zmq_socket_ctx
@@ -66,6 +68,12 @@ class EngineZmqAddresses:
     # Enables fault tolerance between the front-end and engine core.
     engine_control_addr: Optional[str] = None
     engine_fault_report_addr: Optional[str] = None
+    #
+    cmd_addr: Optional[str] = None
+    fault_report_addr: Optional[str] = None
+    client_cmd_addr: Optional[str] = None
+    # todo名称改成地址
+    engine_registry: Optional [dict] = None
 
 
 @dataclass
@@ -98,6 +106,7 @@ class CoreEngineProcManager:
         executor_class: type[Executor],
         log_stats: bool,
         client_handshake_address: Optional[str] = None,
+        fault_report_address: Optional[str] = None,
     ):
         context = get_mp_context()
         common_kwargs = {
@@ -110,6 +119,11 @@ class CoreEngineProcManager:
 
         if client_handshake_address:
             common_kwargs["client_handshake_address"] = client_handshake_address
+
+        if fault_report_address:
+            zmq_ctx = zmq.Context()
+            identity = generate_identity()
+            self.engine_down_socket = make_zmq_socket(ctx=zmq_ctx, path=fault_report_address,  socket_type=zmq.DEALER, bind=True, identity=identity)
 
         self.processes: list[BaseProcess] = []
         local_dp_ranks = []
@@ -166,6 +180,16 @@ class CoreEngineProcManager:
             if proc.exitcode is not None
         }
 
+    def _report_engine_dead(self, dead_message):
+        """向ClientGuard发送engine dead消息"""
+        try:
+            self.engine_down_socket.send_multipart([
+                b'',  # 空帧分隔符
+                dead_message.encode('utf-8')
+            ])
+            print(f"向ClientGuard发送消息: {dead_message}")
+        except Exception as e:
+            print(f"发送消息失败: {e}")
 
 @contextlib.contextmanager
 def set_device_control_env_var(
@@ -704,6 +728,17 @@ def launch_core_engines(
         addresses.engine_fault_report_addr = get_engine_client_zmq_addr(
             local_only=client_local_only, host=host
         )
+        #todo 命名修改
+        addresses.cmd_addr = get_engine_client_zmq_addr(
+            local_only=client_local_only, host=host
+        )
+        addresses.fault_report_addr = get_engine_client_zmq_addr(
+            local_only=client_local_only, host=host
+        )
+        addresses.client_cmd_addr = get_engine_client_zmq_addr(
+            local_only=client_local_only, host=host
+        )
+
 
     if parallel_config.data_parallel_backend == "ray":
         logger.info("Starting ray-based data parallel backend")

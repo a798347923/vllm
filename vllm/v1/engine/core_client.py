@@ -8,6 +8,7 @@ import queue
 import sys
 import uuid
 import weakref
+import threading
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from collections.abc import Awaitable, Sequence
@@ -426,6 +427,71 @@ class BackgroundResources:
             self.engine_dead = True
             raise EngineDeadError()
 
+class ClientGuard(threading.Thread):
+    def __init__(self, fault_receiver_addr, cmd_addr, engine_registry):
+        self.engine_registry = engine_registry
+        self.zmq_ctx = zmq.Context()
+        self.fault_receiver_socket = make_zmq_socket(ctx=self.zmq_ctx, path=fault_receiver_addr, socket_type=zmq.ROUTER, bind=True)
+        self.cmd_socket = make_zmq_socket(ctx=self.zmq_ctx, path=cmd_addr, socket_type=zmq.ROUTER, bind=True)
+
+    def recv_fault_msg(self, poll_timeout=1000):
+        """
+           从fault_receiver_socket接收故障消息
+
+           参数:
+               poll_timeout: 轮询超时时间(毫秒)，默认1000ms
+           返回:
+               元组 (sender_identity, message)，均为字符串类型
+               若超时或无消息，返回 (None, None)
+           """
+        try:
+            # 使用poll机制非阻塞等待消息
+            poller = zmq.Poller()
+            poller.register(self.fault_receiver_socket, zmq.POLLIN)
+            socks = dict(poller.poll(poll_timeout))
+
+            # 检查是否有消息
+            if self.fault_receiver_socket in socks and socks[self.fault_receiver_socket] == zmq.POLLIN:
+                # ROUTER接收的消息格式: [identity, 空帧, 消息内容]
+                parts = self.fault_receiver_socket.recv_multipart()
+
+                # 验证消息格式
+                if len(parts) != 3:
+                    print(f"警告: 收到无效格式的消息，部分数量: {len(parts)}")
+                    return (None, None)
+
+                identity_bytes, empty_frame, message_bytes = parts
+
+                # 验证空帧
+                if empty_frame != b'':
+                    print(f"警告: 消息空帧格式错误，实际值: {empty_frame}")
+                    return (None, None)
+
+                # 转换为字符串
+                sender_identity = identity_bytes.decode('utf-8')
+                message = message_bytes.decode('utf-8')
+
+                return (sender_identity, message)
+
+            # 超时无消息
+            return (None, None)
+
+        except zmq.ZMQError as e:
+            print(f"ZMQ错误: {e}")
+            return (None, None)
+        except UnicodeDecodeError:
+            print("错误: 消息解码失败，非UTF-8格式")
+            return (None, None)
+        except Exception as e:
+            print(f"接收消息时发生未知错误: {e}")
+            return (None, None)
+
+    def handle_fault(self, instruction):
+        pass
+    def shutdown_guard(self):
+        self.fault_receiver_socket.close()
+        self.cmd_socket.close()
+        self.zmq_ctx.term()
 
 class MPClient(EngineCoreClient):
     """
@@ -564,7 +630,18 @@ class MPClient(EngineCoreClient):
                 self.start_engine_exception_receiver(
                     ctx=sync_ctx, address=addresses.engine_fault_report_addr
                 )
-
+                self.engine_registry = {}
+                engine_indexs = [i for i in range(dp_size)]
+                fault_report_inentitys = [get_socket_identity(peer1="client", peer2="engine_core_guard",peer2_index=i,use="report") for i in range(dp_size)]
+                client_cmd_inentitys = [get_socket_identity(peer1="client", peer2="engine_core_guard",peer2_index=i,use="cmd") for i in range(dp_size)]
+                fault_report_registry = dict(zip(engine_indexs, fault_report_inentitys))
+                client_cmd_registry = dict(zip(engine_indexs, client_cmd_inentitys))
+                self.engine_registry["fault_report_registry"] = fault_report_registry
+                self.engine_registry["client_cmd_registry"] = client_cmd_registry
+                addresses.engine_registry = self.engine_registry
+                # todo 拉起ClientGuard
+                # guard_thread = ClientGuard(addresses.fault_report_addr, addresses.cmd_addr, self.engine_registry)
+                # guard_thread.start()
             success = True
         finally:
             if not success:
