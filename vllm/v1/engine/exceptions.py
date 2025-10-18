@@ -49,7 +49,6 @@ class FaultInfo:
 
     def __post_init__(self):
         # If no exit time is specified, the current timestamp will be used by default.
-        import time
 
         local_time = time.localtime(time.time())
         if self.timestamp is None:
