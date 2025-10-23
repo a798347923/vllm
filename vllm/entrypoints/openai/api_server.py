@@ -1359,6 +1359,12 @@ async def process_fault_tolerance_instruction(raw_request: Request):
         raise HTTPException(
             status_code=400, detail="Invalid 'fault_tolerance_instruction' value."
         )
+    # Currently, only two types of instructions are supported: [pause, retry].
+    # Additional descaling instructions will be supported in future updates.
+    elif fault_tolerance_instruction not in ["pause", "retry"]:
+        raise HTTPException(
+            status_code=400, detail="not a valid fault_tolerance_instruction"
+        )
 
     if not isinstance(fault_tolerance_timeout, int) or fault_tolerance_timeout <= 0:
         raise HTTPException(
