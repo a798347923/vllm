@@ -54,11 +54,6 @@ class FaultToleranceConfig:
     The ZMQ address to use for cmd between engine_core_guard and worker_guard.
     """
 
-    fault_pub_port: int = 22877
-    """
-    the port used for publishing fault
-    """
-
     def compute_hash(self) -> str:
         """
         WARNING: Whenever a new field is added to this config,
