@@ -579,6 +579,9 @@ class NCCLLibrary:
     def ncclCommAbort(self, comm: ncclComm_t) -> None:
         self.NCCL_CHECK(self._funcs["ncclCommAbort"](comm), comm)
 
+    def ncclCommAbort(self, comm: ncclComm_t) -> None:
+        self.NCCL_CHECK(self._funcs["ncclCommAbort"](comm))
+
     def ncclGroupStart(self) -> None:
         self.NCCL_CHECK(self._funcs["ncclGroupStart"]())
 

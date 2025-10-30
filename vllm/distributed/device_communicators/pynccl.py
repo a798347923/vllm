@@ -374,6 +374,9 @@ class PyNcclCommunicator:
     def nccl_abort_comm(self):
         self.nccl.ncclCommAbort(self.comm)
 
+    def nccl_abort_comm(self):
+        self.nccl.ncclCommAbort(self.comm)
+
     def register_comm_window(self, tensor: torch.Tensor):
         return self.nccl.ncclCommWindowRegister(
             self.comm,
